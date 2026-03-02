@@ -2,9 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const { user } = useAuth();
+
+  if (!user || pathname === '/login') return null;
 
   return (
     <nav className="fixed bottom-0 inset-x-0 z-50 bg-card border-t border-white/5 pb-safe">

@@ -20,7 +20,7 @@ export default function MerchantGroup({
   const { dispatch } = useGiftCards();
 
   function handleDelete(id: string) {
-    dispatch({ type: 'DELETE_CARD', payload: id });
+    void dispatch({ type: 'DELETE_CARD', payload: id });
   }
 
   const cardCount = group.cards.length;

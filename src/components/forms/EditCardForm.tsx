@@ -83,7 +83,7 @@ export default function EditCardForm({ card }: EditCardFormProps) {
     }
   }
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!validate()) return;
 
@@ -96,13 +96,13 @@ export default function EditCardForm({ card }: EditCardFormProps) {
       updatedAt: new Date().toISOString(),
     };
 
-    dispatch({ type: 'UPDATE_CARD', payload: updated });
+    await dispatch({ type: 'UPDATE_CARD', payload: updated });
     router.push('/');
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (!confirm(`Delete this ${card.merchant} card? This cannot be undone.`)) return;
-    dispatch({ type: 'DELETE_CARD', payload: card.id });
+    await dispatch({ type: 'DELETE_CARD', payload: card.id });
     router.push('/');
   }
 

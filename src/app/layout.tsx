@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
+import AuthGate from '@/components/auth/AuthGate';
+import { AuthProvider } from '@/context/AuthContext';
 import { GiftCardProvider } from '@/context/GiftCardContext';
 import BottomNav from '@/components/ui/BottomNav';
 
@@ -43,12 +45,16 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
       <body className="bg-bg text-gray-50 font-sans antialiased">
-        <GiftCardProvider>
-          <div className="max-w-md mx-auto min-h-svh flex flex-col pb-16">
-            {children}
-          </div>
-          <BottomNav />
-        </GiftCardProvider>
+        <AuthProvider>
+          <AuthGate>
+            <GiftCardProvider>
+              <div className="max-w-md mx-auto min-h-svh flex flex-col pb-16">
+                {children}
+              </div>
+              <BottomNav />
+            </GiftCardProvider>
+          </AuthGate>
+        </AuthProvider>
       </body>
     </html>
   );

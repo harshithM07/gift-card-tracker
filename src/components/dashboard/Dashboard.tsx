@@ -2,12 +2,14 @@
 
 import { useState } from 'react';
 import { useGiftCards } from '@/context/GiftCardContext';
+import { useAuth } from '@/context/AuthContext';
 import MerchantGroup from './MerchantGroup';
 import EmptyState from '@/components/ui/EmptyState';
 import AmountBadge from '@/components/ui/AmountBadge';
 
 export default function Dashboard() {
   const { groups, cards, isHydrated } = useGiftCards();
+  const { user, logout } = useAuth();
   const [query, setQuery] = useState('');
 
   const totalBalance = cards.reduce((sum, c) => sum + c.amount, 0);
@@ -34,6 +36,15 @@ export default function Dashboard() {
         <p className="text-accent text-xs font-semibold tracking-widest uppercase mb-5">
           GiftKeep
         </p>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs text-gray-500 truncate pr-3">{user?.email}</p>
+          <button
+            onClick={logout}
+            className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
+          >
+            Log out
+          </button>
+        </div>
         <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">
           Total Balance
         </p>

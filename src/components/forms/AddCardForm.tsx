@@ -148,7 +148,7 @@ export default function AddCardForm() {
     }
   }
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!validate()) return;
 
@@ -160,7 +160,7 @@ export default function AddCardForm() {
       pin: fields.pin.trim() || null,
     });
 
-    dispatch({ type: 'ADD_CARD', payload: card });
+    await dispatch({ type: 'ADD_CARD', payload: card });
     router.push('/');
   }
 
