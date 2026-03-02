@@ -35,6 +35,10 @@ export default function GiftCardItem({ card, onDelete }: GiftCardItemProps) {
     onSwipedLeft: ({ deltaX }) => {
       if (deleting) return;
       if (Math.abs(deltaX) >= SWIPE_THRESHOLD) {
+        if (!confirm(`Delete this ${card.merchant} card? This cannot be undone.`)) {
+          setOffsetX(0); // snap back
+          return;
+        }
         setDeleting(true);
         setOffsetX(-400); // animate off screen
         setTimeout(() => onDelete(card.id), 260);
