@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useState, useRef, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useGiftCards } from '@/context/GiftCardContext';
 import { createCard } from '@/lib/storage';
@@ -16,6 +16,25 @@ interface FormErrors {
   merchant?: string;
   amount?: string;
   code?: string;
+  pin?: string;
+}
+
+function CameraIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="w-4 h-4"
+    >
+      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+      <circle cx="12" cy="13" r="4" />
+    </svg>
+  );
 }
 
 export default function AddCardForm() {
@@ -30,17 +49,50 @@ export default function AddCardForm() {
   });
   const [errors, setErrors] = useState<FormErrors>({});
   const [showPin, setShowPin] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Unique merchant names for datalist autocomplete
   const merchantNames = [...new Set(cards.map((c) => c.merchant))].sort();
 
   function validate(): boolean {
     const next: FormErrors = {};
-    if (!fields.merchant.trim()) next.merchant = 'Merchant name is required';
+
+    // Merchant
+    const trimmedMerchant = fields.merchant.trim();
+    if (!trimmedMerchant) {
+      next.merchant = 'Merchant name is required';
+    } else if (trimmedMerchant.length > 60) {
+      next.merchant = 'Merchant name must be 60 characters or less';
+    }
+
+    // Amount
     const amt = parseFloat(fields.amount);
-    if (!fields.amount || isNaN(amt) || amt < 0)
+    if (!fields.amount || isNaN(amt)) {
       next.amount = 'Enter a valid amount (e.g. 25.00)';
-    if (!fields.code.trim()) next.code = 'Card code is required';
+    } else if (amt <= 0) {
+      next.amount = 'Amount must be greater than $0.00';
+    } else if (amt > 10000) {
+      next.amount = 'Amount must be $10,000 or less';
+    }
+
+    // Code
+    const trimmedCode = fields.code.trim();
+    if (!trimmedCode) {
+      next.code = 'Card code is required';
+    } else if (trimmedCode.length < 4) {
+      next.code = 'Code must be at least 4 characters';
+    } else if (trimmedCode.length > 100) {
+      next.code = 'Code must be 100 characters or less';
+    }
+
+    // PIN — optional, but if provided must be 4–10 digits
+    const trimmedPin = fields.pin.trim();
+    if (trimmedPin && !/^\d{4,10}$/.test(trimmedPin)) {
+      next.pin = 'PIN must be 4–10 digits';
+    }
+
     setErrors(next);
     return Object.keys(next).length === 0;
   }
@@ -49,6 +101,49 @@ export default function AddCardForm() {
     setFields((f) => ({ ...f, [field]: value }));
     if (errors[field as keyof FormErrors]) {
       setErrors((e) => ({ ...e, [field]: undefined }));
+    }
+  }
+
+  async function handleScan(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setScanning(true);
+    setScanError(null);
+
+    const body = new FormData();
+    body.append('image', file);
+
+    try {
+      const res = await fetch('/api/scan', { method: 'POST', body });
+
+      // Parse JSON safely — a server error page would be HTML, not JSON
+      const contentType = res.headers.get('content-type') ?? '';
+      if (!contentType.includes('application/json')) {
+        throw new Error('Scan failed — please try again.');
+      }
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error ?? 'Scan failed');
+
+      if (!data.merchant && !data.code && !data.pin) {
+        setScanError('No card details found — please enter manually.');
+        return;
+      }
+
+      setFields((f) => ({
+        ...f,
+        merchant: data.merchant ?? f.merchant,
+        code: data.code ?? f.code,
+        pin: data.pin ?? f.pin,
+      }));
+    } catch (err) {
+      setScanError(
+        err instanceof Error ? err.message : 'Scan failed. Please try again.'
+      );
+    } finally {
+      setScanning(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   }
 
@@ -93,12 +188,58 @@ export default function AddCardForm() {
         </button>
         <h1 className="text-2xl font-bold text-gray-100">Add Gift Card</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Enter the details from your card
+          Scan a photo or enter the details manually
         </p>
       </header>
 
-      {/* Form */}
       <form onSubmit={handleSubmit} className="flex flex-col gap-5 flex-1" noValidate>
+        {/* ── Scan section ───────────────────────────────────────────────── */}
+
+        {/* Hidden file input — capture="environment" opens native camera on mobile */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleScan}
+        />
+
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={scanning}
+          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl border border-accent/30
+            bg-accent/5 text-accent hover:bg-accent/10 transition-colors disabled:opacity-50
+            disabled:cursor-not-allowed font-medium text-sm"
+        >
+          {scanning ? (
+            <>
+              <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+              Scanning...
+            </>
+          ) : (
+            <>
+              <CameraIcon />
+              Scan Card Photo
+            </>
+          )}
+        </button>
+
+        {scanError && (
+          <p className="text-sm text-danger bg-danger/10 rounded-lg px-3 py-2.5">
+            {scanError}
+          </p>
+        )}
+
+        {/* Divider */}
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-px bg-white/5" />
+          <span className="text-xs text-gray-600">or enter manually</span>
+          <div className="flex-1 h-px bg-white/5" />
+        </div>
+
+        {/* ── Form fields ────────────────────────────────────────────────── */}
+
         {/* Merchant */}
         <div>
           <label
@@ -144,7 +285,8 @@ export default function AddCardForm() {
             <input
               id="amount"
               type="number"
-              min="0"
+              min="0.01"
+              max="10000"
               step="0.01"
               value={fields.amount}
               onChange={(e) => handleChange('amount', e.target.value)}
@@ -203,9 +345,10 @@ export default function AddCardForm() {
               onChange={(e) => handleChange('pin', e.target.value)}
               placeholder="e.g. 1234"
               autoComplete="off"
-              className="w-full bg-card border border-white/10 rounded-xl px-4 py-3 pr-12 font-mono
-                text-gray-100 placeholder-gray-600 tracking-widest
-                focus:outline-none focus:border-accent/60 transition-colors"
+              inputMode="numeric"
+              className={`w-full bg-card border rounded-xl px-4 py-3 pr-12 font-mono text-gray-100
+                placeholder-gray-600 tracking-widest focus:outline-none focus:border-accent/60
+                transition-colors ${errors.pin ? 'border-danger' : 'border-white/10'}`}
             />
             <button
               type="button"
@@ -214,36 +357,25 @@ export default function AddCardForm() {
               aria-label={showPin ? 'Hide PIN' : 'Show PIN'}
             >
               {showPin ? (
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="w-4 h-4"
-                >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
+                  className="w-4 h-4">
                   <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
                   <line x1="1" x2="23" y1="1" y2="23" />
                 </svg>
               ) : (
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="w-4 h-4"
-                >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
+                  className="w-4 h-4">
                   <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
                   <circle cx="12" cy="12" r="3" />
                 </svg>
               )}
             </button>
           </div>
+          {errors.pin && (
+            <p className="mt-1.5 text-xs text-danger">{errors.pin}</p>
+          )}
         </div>
 
         {/* Submit */}
@@ -251,7 +383,7 @@ export default function AddCardForm() {
           <button
             type="submit"
             className="w-full bg-accent hover:bg-accent-dim text-white font-semibold py-4 rounded-xl
-              transition-colors active:scale-[0.98] transition-transform"
+              transition-colors active:scale-[0.98]"
           >
             Save Card
           </button>
