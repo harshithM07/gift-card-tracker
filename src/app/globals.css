@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+@theme inline {
+  /* Brand colors */
+  --color-bg: #050505;
+  --color-card: #121212;
+  --color-card-hover: #1c1c1c;
+  --color-accent: #10b981;
+  --color-accent-dim: #059669;
+  --color-danger: #ef4444;
+  --color-surface: #1e1e1e;
+
+  /* Fonts — resolved from next/font CSS variables */
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-jetbrains);
+}
+
+body {
+  background-color: #050505;
+  color: #f9fafb;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* iOS safe-area utilities */
+@layer utilities {
+  .pb-safe {
+    padding-bottom: max(env(safe-area-inset-bottom), 0.75rem);
+  }
+  .min-h-screen-safe {
+    min-height: calc(100svh - env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Prevent text selection during swipe on touch devices */
+@layer utilities {
+  .no-select {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}

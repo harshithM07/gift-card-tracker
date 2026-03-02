@@ -35,6 +35,17 @@ yarn-error.*
 .DS_Store
 Thumbs.db
 
-# ── Secrets ──────────────────────────────────────────────────────────────────
+# ── Next.js ───────────────────────────────────────────────────────────────────
+.next/
+out/
+next-env.d.ts
+tsconfig.tsbuildinfo
+
+# ── Env / Secrets ─────────────────────────────────────────────────────────────
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 backend/.env
 mobile/.env
