@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useRef, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useGiftCards } from '@/context/GiftCardContext';
-import { createCard } from '@/lib/storage';
+import type { GiftCard } from '@/types';
 
 interface FormFields {
   merchant: string;
@@ -19,48 +19,29 @@ interface FormErrors {
   pin?: string;
 }
 
-function CameraIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="w-4 h-4"
-    >
-      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-      <circle cx="12" cy="13" r="4" />
-    </svg>
-  );
+interface EditCardFormProps {
+  card: GiftCard;
 }
 
-export default function AddCardForm() {
+export default function EditCardForm({ card }: EditCardFormProps) {
   const router = useRouter();
   const { cards, dispatch } = useGiftCards();
 
   const [fields, setFields] = useState<FormFields>({
-    merchant: '',
-    amount: '',
-    code: '',
-    pin: '',
+    merchant: card.merchant,
+    amount: (card.amount / 100).toFixed(2),
+    code: card.code,
+    pin: card.pin ?? '',
   });
   const [errors, setErrors] = useState<FormErrors>({});
   const [showPin, setShowPin] = useState(false);
-  const [scanning, setScanning] = useState(false);
-  const [scanError, setScanError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
 
-  // Unique merchant names for datalist autocomplete
+  // Unique merchant names for datalist autocomplete (excluding current card's merchant)
   const merchantNames = [...new Set(cards.map((c) => c.merchant))].sort();
 
   function validate(): boolean {
     const next: FormErrors = {};
 
-    // Merchant
     const trimmedMerchant = fields.merchant.trim();
     if (!trimmedMerchant) {
       next.merchant = 'Merchant name is required';
@@ -68,7 +49,6 @@ export default function AddCardForm() {
       next.merchant = 'Merchant name must be 60 characters or less';
     }
 
-    // Amount
     const amt = parseFloat(fields.amount);
     if (!fields.amount || isNaN(amt)) {
       next.amount = 'Enter a valid amount (e.g. 25.00)';
@@ -78,7 +58,6 @@ export default function AddCardForm() {
       next.amount = 'Amount must be $10,000 or less';
     }
 
-    // Code
     const trimmedCode = fields.code.trim();
     if (!trimmedCode) {
       next.code = 'Card code is required';
@@ -88,7 +67,6 @@ export default function AddCardForm() {
       next.code = 'Code must be 100 characters or less';
     }
 
-    // PIN — optional, but if provided must be 4–10 digits
     const trimmedPin = fields.pin.trim();
     if (trimmedPin && !/^\d{4,10}$/.test(trimmedPin)) {
       next.pin = 'PIN must be 4–10 digits';
@@ -105,62 +83,26 @@ export default function AddCardForm() {
     }
   }
 
-  async function handleScan(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setScanning(true);
-    setScanError(null);
-
-    const body = new FormData();
-    body.append('image', file);
-
-    try {
-      const res = await fetch('/api/scan', { method: 'POST', body });
-
-      // Parse JSON safely — a server error page would be HTML, not JSON
-      const contentType = res.headers.get('content-type') ?? '';
-      if (!contentType.includes('application/json')) {
-        throw new Error('Scan failed — please try again.');
-      }
-      const data = await res.json();
-
-      if (!res.ok) throw new Error(data.error ?? 'Scan failed');
-
-      if (!data.merchant && !data.code && !data.pin) {
-        setScanError('No card details found — please enter manually.');
-        return;
-      }
-
-      setFields((f) => ({
-        ...f,
-        merchant: data.merchant ?? f.merchant,
-        code: data.code ?? f.code,
-        pin: data.pin ?? f.pin,
-      }));
-    } catch (err) {
-      setScanError(
-        err instanceof Error ? err.message : 'Scan failed. Please try again.'
-      );
-    } finally {
-      setScanning(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  }
-
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!validate()) return;
 
-    const cents = Math.round(parseFloat(fields.amount) * 100);
-    const card = createCard({
+    const updated: GiftCard = {
+      ...card,
       merchant: fields.merchant.trim(),
-      amount: cents,
+      amount: Math.round(parseFloat(fields.amount) * 100),
       code: fields.code.trim(),
       pin: fields.pin.trim() || null,
-    });
+      updatedAt: new Date().toISOString(),
+    };
 
-    dispatch({ type: 'ADD_CARD', payload: card });
+    dispatch({ type: 'UPDATE_CARD', payload: updated });
+    router.push('/');
+  }
+
+  function handleDelete() {
+    if (!confirm(`Delete this ${card.merchant} card? This cannot be undone.`)) return;
+    dispatch({ type: 'DELETE_CARD', payload: card.id });
     router.push('/');
   }
 
@@ -187,90 +129,11 @@ export default function AddCardForm() {
           </svg>
           Back
         </button>
-        <h1 className="text-2xl font-bold text-gray-100">Add Gift Card</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Scan a photo or enter the details manually
-        </p>
+        <h1 className="text-2xl font-bold text-gray-100">Edit Card</h1>
+        <p className="text-sm text-gray-500 mt-1">Update the card details below</p>
       </header>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-5 flex-1" noValidate>
-        {/* ── Scan section ───────────────────────────────────────────────── */}
-
-        {/* Hidden inputs — camera opens native camera, file opens gallery/picker */}
-        <input
-          ref={cameraInputRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          className="hidden"
-          onChange={handleScan}
-        />
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={handleScan}
-        />
-
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => cameraInputRef.current?.click()}
-            disabled={scanning}
-            className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl border border-accent/30
-              bg-accent/5 text-accent hover:bg-accent/10 transition-colors disabled:opacity-50
-              disabled:cursor-not-allowed font-medium text-sm"
-          >
-            {scanning ? (
-              <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <CameraIcon />
-            )}
-            {scanning ? 'Scanning…' : 'Take Photo'}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={scanning}
-            className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl border border-white/10
-              bg-white/5 text-gray-400 hover:bg-white/10 transition-colors disabled:opacity-50
-              disabled:cursor-not-allowed font-medium text-sm"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="w-4 h-4"
-            >
-              <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
-              <circle cx="9" cy="9" r="2" />
-              <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-            </svg>
-            Upload Photo
-          </button>
-        </div>
-
-        {scanError && (
-          <p className="text-sm text-danger bg-danger/10 rounded-lg px-3 py-2.5">
-            {scanError}
-          </p>
-        )}
-
-        {/* Divider */}
-        <div className="flex items-center gap-3">
-          <div className="flex-1 h-px bg-white/5" />
-          <span className="text-xs text-gray-600">or enter manually</span>
-          <div className="flex-1 h-px bg-white/5" />
-        </div>
-
-        {/* ── Form fields ────────────────────────────────────────────────── */}
-
         {/* Merchant */}
         <div>
           <label
@@ -409,14 +272,22 @@ export default function AddCardForm() {
           )}
         </div>
 
-        {/* Submit */}
-        <div className="mt-auto pb-4">
+        {/* Actions */}
+        <div className="mt-auto pb-4 flex flex-col gap-3">
           <button
             type="submit"
             className="w-full bg-accent hover:bg-accent-dim text-white font-semibold py-4 rounded-xl
               transition-colors active:scale-[0.98]"
           >
-            Save Card
+            Save Changes
+          </button>
+          <button
+            type="button"
+            onClick={handleDelete}
+            className="w-full border border-danger/40 text-danger hover:bg-danger/10 font-medium py-3.5
+              rounded-xl transition-colors active:scale-[0.98]"
+          >
+            Delete Card
           </button>
         </div>
       </form>

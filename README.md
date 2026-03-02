@@ -19,7 +19,7 @@ A "Digital Wallet" for physical gift cards. The app must be a **PWA (Progressive
 
 ---
 
-### Phase 1: The Manual Tracker (MVP) ← *Current*
+### Phase 1: The Manual Tracker (MVP) ✅
 
 **Goal:** A functional CRUD app using localStorage.
 
@@ -29,23 +29,35 @@ A "Digital Wallet" for physical gift cards. The app must be a **PWA (Progressive
 - **Actions:** Swipe-left to delete a card; Tap to copy code to clipboard.
 - **Deployment:** Optimized for Vercel's hobby tier.
 
-**Stack:** Next.js 14+ App Router · Tailwind CSS · TypeScript · localStorage · React Context + useReducer · Framer Motion · react-swipeable
+**Stack:** Next.js 16 App Router · Tailwind CSS v4 · TypeScript · localStorage · React Context + useReducer · Framer Motion · react-swipeable
 
 ---
 
-### Phase 2: The "Smart Scan" (AI Integration)
+### Phase 2: The "Smart Scan" (AI Integration) ✅
 
 **Goal:** Replace typing with OCR.
 
-- Integration: Vercel AI SDK with `gpt-4o-mini`
-- User uploads a photo of the card back
+- Integration: `@google/generative-ai` with `gemini-2.5-flash` vision
+- User uploads a photo of the card back (or takes a live photo on mobile)
 - AI extracts `Merchant`, `Code`, and `PIN` as strict JSON (missing fields → `null`)
-- Balance entry stays manual; "Last Updated" timestamp added
-- AI scanning route uses **Vercel Edge Runtime**
+- Balance entry stays manual
+- Improved form validation: positive amounts, length limits, digit-only PIN
 
 ---
 
-### Phase 3: Persistence & Admin Control
+### Phase 3: UI Enhancements ✅
+
+**Goal:** Discoverability and checkout-ready features.
+
+- App branding visible in dashboard header
+- Merchant search / filter on dashboard
+- Barcode + QR code modal per card (via `bwip-js`) for use at checkout
+- Edit card page (`/edit/[id]`) — fix typos, update balance, delete card
+- Camera vs upload split on Add Card (native camera on mobile)
+
+---
+
+### Phase 4: Persistence & Admin Control
 
 **Goal:** Multi-user support and centralized data.
 
@@ -58,7 +70,6 @@ A "Digital Wallet" for physical gift cards. The app must be a **PWA (Progressive
 ### Future Expansion Hooks
 
 - **Auto-Pull:** `provider_id` field on card schema for future automated balance-check API integrations
-- **Barcode/QR:** UI slot to render a barcode via `bwip-js` from the saved text code
 - **Geofencing:** Merchant data schema includes `coordinates` for location-based reminders
 
 ---
@@ -67,6 +78,7 @@ A "Digital Wallet" for physical gift cards. The app must be a **PWA (Progressive
 
 ```bash
 npm install
+cp .env.example .env.local   # add your GOOGLE_AI_API_KEY
 npm run dev
 ```
 
@@ -76,12 +88,14 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 | Concern | Technology |
 |---|---|
-| Framework | Next.js 14+ (App Router) |
-| Styling | Tailwind CSS |
+| Framework | Next.js 16 (App Router) |
+| Styling | Tailwind CSS v4 |
 | Language | TypeScript |
-| Persistence | localStorage (Phase 1) → Supabase (Phase 3) |
+| Persistence | localStorage (Phase 1–3) → Supabase (Phase 4) |
 | State | React Context + useReducer |
 | Animations | Framer Motion |
 | Swipe Gestures | react-swipeable |
+| AI Scan | Google Generative AI (Gemini 2.5 Flash) |
+| Barcodes | bwip-js |
 | Fonts | Inter (UI) + JetBrains Mono (codes) |
 | Deployment | Vercel |
