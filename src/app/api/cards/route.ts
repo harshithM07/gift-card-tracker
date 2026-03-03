@@ -1,5 +1,5 @@
-import { getCurrentUser } from '@/lib/auth/currentUser';
-import { createCardForUser, listCards } from '@/lib/cards/store';
+import { createClient } from '@/lib/supabase/server';
+import { rowToCard } from '@/lib/storage';
 
 type CreateCardBody = {
   merchant?: string;
@@ -37,16 +37,29 @@ function validateCreateBody(body: CreateCardBody): string | null {
 }
 
 export async function GET() {
-  const user = await getCurrentUser();
+  const supabase = await createClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  return Response.json({ cards: listCards(user.id) });
+  const { data, error } = await supabase
+    .from('gift_cards')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    return Response.json({ error: error.message }, { status: 500 });
+  }
+
+  return Response.json({ cards: (data ?? []).map(rowToCard) });
 }
 
 export async function POST(req: Request) {
-  const user = await getCurrentUser();
+  const supabase = await createClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -58,17 +71,26 @@ export async function POST(req: Request) {
     return Response.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const error = validateCreateBody(body);
-  if (error) {
-    return Response.json({ error }, { status: 400 });
+  const validationError = validateCreateBody(body);
+  if (validationError) {
+    return Response.json({ error: validationError }, { status: 400 });
   }
 
-  const card = createCardForUser(user.id, {
-    merchant: body.merchant!.trim(),
-    amount: body.amount!,
-    code: body.code!.trim(),
-    pin: body.pin ? body.pin.trim() : null,
-  });
+  const { data, error } = await supabase
+    .from('gift_cards')
+    .insert({
+      user_id: user.id,
+      merchant: body.merchant!.trim(),
+      amount: body.amount!,
+      code: body.code!.trim(),
+      pin: body.pin ? body.pin.trim() || null : null,
+    })
+    .select()
+    .single();
 
-  return Response.json({ card }, { status: 201 });
+  if (error) {
+    return Response.json({ error: error.message }, { status: 500 });
+  }
+
+  return Response.json({ card: rowToCard(data) }, { status: 201 });
 }

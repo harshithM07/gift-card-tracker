@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 
@@ -47,7 +48,7 @@ export default function LoginForm() {
         <p className="text-sm text-gray-500 mb-6">
           {mode === 'login'
             ? 'Use your email and password to continue'
-            : 'Temporary local account for development'}
+            : 'Enter your email and a password to get started'}
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
@@ -109,18 +110,28 @@ export default function LoginForm() {
           </button>
         </form>
 
-        <button
-          type="button"
-          onClick={() => {
-            setMode((m) => (m === 'login' ? 'register' : 'login'));
-            setError(null);
-          }}
-          className="w-full mt-4 text-sm text-gray-500 hover:text-gray-300 transition-colors"
-        >
-          {mode === 'login'
-            ? 'Need an account? Register'
-            : 'Already have an account? Sign in'}
-        </button>
+        <div className="mt-4 flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setMode((m) => (m === 'login' ? 'register' : 'login'));
+              setError(null);
+            }}
+            className="w-full text-sm text-gray-500 hover:text-gray-300 transition-colors"
+          >
+            {mode === 'login'
+              ? 'Need an account? Register'
+              : 'Already have an account? Sign in'}
+          </button>
+          {mode === 'login' && (
+            <Link
+              href="/forgot-password"
+              className="w-full text-sm text-center text-gray-600 hover:text-gray-400 transition-colors"
+            >
+              Forgot password?
+            </Link>
+          )}
+        </div>
       </div>
     </div>
   );

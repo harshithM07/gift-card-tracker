@@ -1,5 +1,5 @@
-import { getCurrentUser } from '@/lib/auth/currentUser';
-import { deleteCardForUser, updateCardForUser } from '@/lib/cards/store';
+import { createClient } from '@/lib/supabase/server';
+import { rowToCard } from '@/lib/storage';
 
 type UpdateCardBody = {
   merchant?: string;
@@ -40,7 +40,9 @@ export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const user = await getCurrentUser();
+  const supabase = await createClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -54,37 +56,49 @@ export async function PATCH(
     return Response.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const error = validateUpdateBody(body);
-  if (error) {
-    return Response.json({ error }, { status: 400 });
+  const validationError = validateUpdateBody(body);
+  if (validationError) {
+    return Response.json({ error: validationError }, { status: 400 });
   }
 
-  const card = updateCardForUser(user.id, id, {
-    merchant: body.merchant!.trim(),
-    amount: body.amount!,
-    code: body.code!.trim(),
-    pin: body.pin ? body.pin.trim() : null,
-  });
+  const { data, error } = await supabase
+    .from('gift_cards')
+    .update({
+      merchant: body.merchant!.trim(),
+      amount: body.amount!,
+      code: body.code!.trim(),
+      pin: body.pin ? body.pin.trim() || null : null,
+    })
+    .eq('id', id)
+    .select()
+    .single();
 
-  if (!card) {
+  if (error) {
     return Response.json({ error: 'Card not found' }, { status: 404 });
   }
 
-  return Response.json({ card });
+  return Response.json({ card: rowToCard(data) });
 }
 
 export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const user = await getCurrentUser();
+  const supabase = await createClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const { id } = await params;
-  const deleted = deleteCardForUser(user.id, id);
-  if (!deleted) {
+
+  const { error } = await supabase
+    .from('gift_cards')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
     return Response.json({ error: 'Card not found' }, { status: 404 });
   }
 

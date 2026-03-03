@@ -1,19 +1,12 @@
-import { cookies } from 'next/headers';
-import { SESSION_COOKIE } from '@/lib/auth/constants';
-import { getUserBySessionId } from '@/lib/auth/store';
+import { createClient } from '@/lib/supabase/server';
 
 export async function GET() {
-  const cookieStore = await cookies();
-  const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
+  const supabase = await createClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
 
-  if (!sessionId) {
+  if (error || !user) {
     return Response.json({ user: null }, { status: 401 });
   }
 
-  const user = getUserBySessionId(sessionId);
-  if (!user) {
-    return Response.json({ user: null }, { status: 401 });
-  }
-
-  return Response.json({ user });
+  return Response.json({ user: { id: user.id, email: user.email } });
 }

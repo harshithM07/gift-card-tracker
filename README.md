@@ -57,12 +57,25 @@ A "Digital Wallet" for physical gift cards. The app must be a **PWA (Progressive
 
 ---
 
-### Phase 4: Persistence & Admin Control
+### Phase 4: Auth + Persistent Storage ✅
 
-**Goal:** Multi-user support and centralized data.
+**Goal:** Multi-user support with secure, persistent data.
 
-- **Database:** Supabase with Row Level Security (RLS)
-- **Authentication:** Social login or Email/Password
+- Email/password sign-up and sign-in (Supabase Auth)
+- Email confirmation on sign-up; forgot-password and reset-password flows
+- Supabase Postgres for card storage, with Row Level Security (users see only their own cards)
+- Session managed via `@supabase/ssr` cookies; middleware refreshes token on every request
+- Route protection via `AuthGate` client component
+- Signed-in email + logout visible in dashboard header
+
+**Stack addition:** `@supabase/supabase-js` · `@supabase/ssr`
+
+---
+
+### Phase 5: Admin Control
+
+**Goal:** Centralized merchant management.
+
 - **Admin Interface:** Hidden route `/admin` to manage global Merchant list (Names, Logos, Brand Colors)
 
 ---
@@ -78,9 +91,11 @@ A "Digital Wallet" for physical gift cards. The app must be a **PWA (Progressive
 
 ```bash
 npm install
-cp .env.example .env.local   # add your GOOGLE_AI_API_KEY
+cp .env.example .env.local   # add GOOGLE_AI_API_KEY + NEXT_PUBLIC_SUPABASE_URL + NEXT_PUBLIC_SUPABASE_ANON_KEY
 npm run dev
 ```
+
+Before running, create a Supabase project at [supabase.com](https://supabase.com) and run the SQL from `docs/phase4-plan.md` to create the `gift_cards` table and RLS policies.
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
@@ -91,7 +106,8 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 | Framework | Next.js 16 (App Router) |
 | Styling | Tailwind CSS v4 |
 | Language | TypeScript |
-| Persistence | localStorage (Phase 1–3) → Supabase (Phase 4) |
+| Persistence | Supabase Postgres (Phase 4) |
+| Auth | Supabase Auth (`@supabase/ssr`) |
 | State | React Context + useReducer |
 | Animations | Framer Motion |
 | Swipe Gestures | react-swipeable |

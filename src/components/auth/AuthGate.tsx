@@ -9,12 +9,14 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
 
+  const PUBLIC_ROUTES = ['/login', '/forgot-password', '/reset-password'];
+  const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
   const isLoginRoute = pathname === '/login';
 
   useEffect(() => {
     if (isLoading) return;
 
-    if (!user && !isLoginRoute) {
+    if (!user && !isPublicRoute) {
       router.replace('/login');
       return;
     }
@@ -22,7 +24,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     if (user && isLoginRoute) {
       router.replace('/');
     }
-  }, [isLoading, user, isLoginRoute, router]);
+  }, [isLoading, user, isPublicRoute, isLoginRoute, router]);
 
   if (isLoading) {
     return (
@@ -32,7 +34,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     );
   }
 
-  if (!user && !isLoginRoute) return null;
+  if (!user && !isPublicRoute) return null;
   if (user && isLoginRoute) return null;
 
   return <>{children}</>;
