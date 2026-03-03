@@ -3,10 +3,17 @@ import { rowToCard } from '@/lib/storage';
 
 type CreateCardBody = {
   merchant?: string;
+  merchantId?: string | null;
   amount?: number;
   code?: string;
   pin?: string | null;
 };
+
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value
+  );
+}
 
 function validateCreateBody(body: CreateCardBody): string | null {
   const merchant = body.merchant?.trim() ?? '';
@@ -30,6 +37,13 @@ function validateCreateBody(body: CreateCardBody): string | null {
     const pin = body.pin.trim();
     if (pin && !/^\d{4,10}$/.test(pin)) {
       return 'PIN must be 4-10 digits';
+    }
+  }
+
+  if (body.merchantId !== null && body.merchantId !== undefined) {
+    const merchantId = body.merchantId.trim();
+    if (merchantId && !isUuid(merchantId)) {
+      return 'merchantId must be a valid UUID';
     }
   }
 
@@ -81,6 +95,7 @@ export async function POST(req: Request) {
     .insert({
       user_id: user.id,
       merchant: body.merchant!.trim(),
+      merchant_id: body.merchantId ? body.merchantId.trim() : null,
       amount: body.amount!,
       code: body.code!.trim(),
       pin: body.pin ? body.pin.trim() || null : null,

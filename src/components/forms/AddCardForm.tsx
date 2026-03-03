@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useRef, type FormEvent } from 'react';
+import { useState, useRef, useEffect, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useGiftCards } from '@/context/GiftCardContext';
 import { createCard } from '@/lib/storage';
+import MerchantCombobox from '@/components/ui/MerchantCombobox';
 
 interface FormFields {
   merchant: string;
@@ -17,6 +18,11 @@ interface FormErrors {
   amount?: string;
   code?: string;
   pin?: string;
+}
+
+interface MerchantOption {
+  id: string;
+  name: string;
 }
 
 function CameraIcon() {
@@ -51,11 +57,47 @@ export default function AddCardForm() {
   const [showPin, setShowPin] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
+  const [merchantOptions, setMerchantOptions] = useState<MerchantOption[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
-  // Unique merchant names for datalist autocomplete
-  const merchantNames = [...new Set(cards.map((c) => c.merchant))].sort();
+  // Combine canonical merchant catalog + existing card names for suggestions.
+  const merchantNames = [
+    ...new Set([
+      ...merchantOptions.map((m) => m.name),
+      ...cards.map((c) => c.merchant),
+    ]),
+  ].sort();
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch('/api/merchants')
+      .then(async (res) => {
+        if (!res.ok) return [];
+        const data = (await res.json()) as { merchants?: MerchantOption[] };
+        return Array.isArray(data.merchants) ? data.merchants : [];
+      })
+      .then((merchants) => {
+        if (!cancelled) setMerchantOptions(merchants);
+      })
+      .catch(() => {
+        if (!cancelled) setMerchantOptions([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  function resolveMerchantId(inputName: string): string | null {
+    const normalized = inputName.trim().toLowerCase();
+    if (!normalized) return null;
+    const match = merchantOptions.find(
+      (m) => m.name.trim().toLowerCase() === normalized
+    );
+    return match?.id ?? null;
+  }
 
   function validate(): boolean {
     const next: FormErrors = {};
@@ -155,6 +197,7 @@ export default function AddCardForm() {
     const cents = Math.round(parseFloat(fields.amount) * 100);
     const card = createCard({
       merchant: fields.merchant.trim(),
+      merchantId: resolveMerchantId(fields.merchant),
       amount: cents,
       code: fields.code.trim(),
       pin: fields.pin.trim() || null,
@@ -279,23 +322,14 @@ export default function AddCardForm() {
           >
             Merchant
           </label>
-          <input
+          <MerchantCombobox
             id="merchant"
-            type="text"
-            list="merchant-list"
             value={fields.merchant}
-            onChange={(e) => handleChange('merchant', e.target.value)}
             placeholder="e.g. Starbucks"
-            autoComplete="off"
-            className={`w-full bg-card border rounded-xl px-4 py-3 text-gray-100 placeholder-gray-600
-              focus:outline-none focus:border-accent/60 transition-colors
-              ${errors.merchant ? 'border-danger' : 'border-white/10'}`}
+            options={merchantNames}
+            hasError={Boolean(errors.merchant)}
+            onChange={(value) => handleChange('merchant', value)}
           />
-          <datalist id="merchant-list">
-            {merchantNames.map((name) => (
-              <option key={name} value={name} />
-            ))}
-          </datalist>
           {errors.merchant && (
             <p className="mt-1.5 text-xs text-danger">{errors.merchant}</p>
           )}

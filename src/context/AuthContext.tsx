@@ -20,7 +20,7 @@ type AuthContextValue = {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  deleteAccount: () => Promise<void>;
+  deleteAccount: (password: string) => Promise<void>;
   refreshSession: () => Promise<void>;
 };
 
@@ -92,8 +92,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }
 
-  async function deleteAccount() {
-    const res = await fetch('/api/auth/account', { method: 'DELETE' });
+  async function deleteAccount(password: string) {
+    const res = await fetch('/api/auth/account', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ password }),
+    });
     const data = await parseJsonResponse(res);
     if (!res.ok) {
       throw new Error(

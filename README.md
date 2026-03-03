@@ -95,7 +95,7 @@ cp .env.example .env.local   # add GOOGLE_AI_API_KEY + NEXT_PUBLIC_SUPABASE_URL 
 npm run dev
 ```
 
-Before running, create a Supabase project at [supabase.com](https://supabase.com) and run the SQL from `docs/phase4-plan.md` to create the `gift_cards` table and RLS policies.
+Before running, create a Supabase project at [supabase.com](https://supabase.com) and run your base auth/cards schema + RLS setup, then apply `docs/phase4-merchants.sql` for merchant catalog support.
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 

@@ -99,6 +99,7 @@ export function GiftCardProvider({ children }: { children: ReactNode }) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             merchant: action.payload.merchant,
+            merchantId: action.payload.merchantId,
             amount: action.payload.amount,
             code: action.payload.code,
             pin: action.payload.pin,
@@ -118,6 +119,7 @@ export function GiftCardProvider({ children }: { children: ReactNode }) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             merchant: action.payload.merchant,
+            merchantId: action.payload.merchantId,
             amount: action.payload.amount,
             code: action.payload.code,
             pin: action.payload.pin,

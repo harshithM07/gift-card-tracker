@@ -1,7 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
-import { createClient as createAdminClient } from '@supabase/supabase-js';
 
-export async function DELETE(req: Request) {
+export async function POST(req: Request) {
   let body: { password?: string };
   try {
     body = await req.json();
@@ -14,7 +13,6 @@ export async function DELETE(req: Request) {
     return Response.json({ error: 'Current password is required' }, { status: 400 });
   }
 
-  // Verify the caller is authenticated
   const supabase = await createClient();
   const {
     data: { user },
@@ -27,20 +25,13 @@ export async function DELETE(req: Request) {
     );
   }
 
-  // Use the service role key to delete the user (admin-only operation).
-  // Cards are cascade-deleted by the DB foreign key constraint.
-  const admin = createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-
-  const { error } = await admin.auth.admin.deleteUser(user.id);
-  if (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+  const { error: reauthError } = await supabase.auth.signInWithPassword({
+    email: user.email ?? '',
+    password,
+  });
+  if (reauthError) {
+    return Response.json({ error: 'Current password is incorrect' }, { status: 401 });
   }
-
-  // Clear the session cookie
-  await supabase.auth.signOut();
 
   return Response.json({ ok: true });
 }

@@ -2,7 +2,8 @@
 
 export interface GiftCard {
   id: string;
-  merchant: string;
+  merchant: string; // display/fallback merchant name (always present)
+  merchantId: string | null; // canonical merchant FK when known
   amount: number;          // stored in cents to avoid float errors ($18.75 = 1875)
   code: string;
   pin: string | null;

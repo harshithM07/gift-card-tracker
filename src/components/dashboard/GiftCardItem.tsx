@@ -6,6 +6,7 @@ import { useSwipeable } from 'react-swipeable';
 import type { GiftCard } from '@/types';
 import CopyButton from '@/components/ui/CopyButton';
 import AmountBadge from '@/components/ui/AmountBadge';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 
 const SWIPE_THRESHOLD = 80; // px — minimum swipe to trigger delete
 
@@ -21,6 +22,7 @@ export default function GiftCardItem({ card, onDelete }: GiftCardItemProps) {
   const [deleting, setDeleting] = useState(false);
   const [showPin, setShowPin] = useState(false);
   const [showCode, setShowCode] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [codeType, setCodeType] = useState<CodeType>('barcode');
   const [barcodeError, setBarcodeError] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -35,13 +37,8 @@ export default function GiftCardItem({ card, onDelete }: GiftCardItemProps) {
     onSwipedLeft: ({ deltaX }) => {
       if (deleting) return;
       if (Math.abs(deltaX) >= SWIPE_THRESHOLD) {
-        if (!confirm(`Delete this ${card.merchant} card? This cannot be undone.`)) {
-          setOffsetX(0); // snap back
-          return;
-        }
-        setDeleting(true);
-        setOffsetX(-400); // animate off screen
-        setTimeout(() => onDelete(card.id), 260);
+        setOffsetX(0);
+        setShowDeleteConfirm(true);
       } else {
         setOffsetX(0); // snap back
       }
@@ -95,6 +92,13 @@ export default function GiftCardItem({ card, onDelete }: GiftCardItemProps) {
       return clean.match(/.{1,4}/g)?.join(' ') ?? code;
     }
     return code;
+  }
+
+  function confirmDelete() {
+    setShowDeleteConfirm(false);
+    setDeleting(true);
+    setOffsetX(-400);
+    setTimeout(() => onDelete(card.id), 260);
   }
 
   return (
@@ -327,6 +331,15 @@ export default function GiftCardItem({ card, onDelete }: GiftCardItemProps) {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        title="Delete card"
+        message={`Delete this ${card.merchant} card? This cannot be undone.`}
+        confirmLabel="Delete"
+        onConfirm={confirmDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </>
   );
 }

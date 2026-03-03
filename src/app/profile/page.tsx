@@ -3,8 +3,7 @@
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-
-const CONFIRM_WORD = 'DELETE';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -12,9 +11,11 @@ export default function ProfilePage() {
 
   const [name, setName] = useState('');
   const [saved, setSaved] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [checkingPassword, setCheckingPassword] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   function handleSaveProfile(e: FormEvent) {
     e.preventDefault();
@@ -26,10 +27,43 @@ export default function ProfilePage() {
     setDeleting(true);
     setDeleteError(null);
     try {
-      await deleteAccount();
+      await deleteAccount(currentPassword);
     } catch (err) {
-      setDeleteError(err instanceof Error ? err.message : 'Failed to delete account');
+      const message = err instanceof Error ? err.message : 'Failed to delete account';
+      setDeleteError(message);
       setDeleting(false);
+      setShowDeleteConfirm(false);
+    }
+  }
+
+  async function handleRequestDeleteConfirm() {
+    setDeleteError(null);
+    setCheckingPassword(true);
+
+    try {
+      const res = await fetch('/api/auth/reauth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ password: currentPassword }),
+      });
+
+      const contentType = res.headers.get('content-type') ?? '';
+      const data =
+        contentType.includes('application/json')
+          ? ((await res.json()) as { error?: string })
+          : {};
+
+      if (!res.ok) {
+        setDeleteError(data.error ?? 'Could not verify password');
+        return;
+      }
+
+      setShowDeleteConfirm(true);
+    } catch {
+      setDeleteError('Could not verify password');
+    } finally {
+      setCheckingPassword(false);
     }
   }
 
@@ -95,18 +129,16 @@ export default function ProfilePage() {
           <p className="text-xs text-gray-400 mb-3">
             Permanently deletes your account and all gift cards.
           </p>
-          <p className="text-xs text-gray-400 mb-2">
-            Type <span className="font-mono text-danger">{CONFIRM_WORD}</span> to confirm
-          </p>
           <input
-            type="text"
-            value={deleteConfirm}
-            onChange={(e) => setDeleteConfirm(e.target.value)}
-            placeholder={CONFIRM_WORD}
+            type="password"
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+            placeholder="Enter current password"
+            autoComplete="current-password"
             disabled={deleting}
             className="w-full bg-bg border border-white/10 rounded-xl px-3 py-2.5 text-sm text-gray-100
               placeholder-gray-700 focus:outline-none focus:border-danger/60 transition-colors mb-3
-              font-mono disabled:opacity-50"
+              disabled:opacity-50"
           />
           {deleteError && (
             <p className="text-sm text-danger bg-danger/10 rounded-lg px-3 py-2 mb-3">
@@ -114,15 +146,25 @@ export default function ProfilePage() {
             </p>
           )}
           <button
-            onClick={handleDeleteAccount}
-            disabled={deleteConfirm !== CONFIRM_WORD || deleting}
+            onClick={handleRequestDeleteConfirm}
+            disabled={!currentPassword || deleting || checkingPassword}
             className="w-full py-3 rounded-xl bg-danger text-white text-sm font-semibold
               transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-danger/80"
           >
-            {deleting ? 'Deleting...' : 'Delete account'}
+            {checkingPassword ? 'Checking password...' : deleting ? 'Deleting...' : 'Delete account'}
           </button>
         </section>
       </main>
+
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        title="Delete account"
+        message="This permanently deletes your account and all gift cards. This cannot be undone."
+        confirmLabel="Delete account"
+        busy={deleting}
+        onConfirm={handleDeleteAccount}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </div>
   );
 }

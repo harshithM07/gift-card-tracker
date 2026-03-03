@@ -86,12 +86,14 @@ export default function AccountDrawer({
           >
             Profile
           </Link>
-          <button
-            disabled
-            className="w-full text-left px-4 py-3 rounded-xl border border-white/10 text-sm text-gray-600"
+          <Link
+            href="/security"
+            onClick={handleClose}
+            className="block w-full text-left px-4 py-3 rounded-xl border border-white/10 text-sm
+              text-gray-300 hover:border-white/20 hover:bg-white/5 transition-colors"
           >
-            Security (Soon)
-          </button>
+            Security
+          </Link>
           <button
             onClick={onLogout}
             className="w-full text-left px-4 py-3 rounded-xl border border-white/10 text-sm
